@@ -19,3 +19,6 @@ __pycache__/
 /FROST.md
 /SNOWBLIND.md
 /vendor/openzeppelin-contracts/README.md
+
+# Keep Markdown documentation local, including future documents.
+*.md

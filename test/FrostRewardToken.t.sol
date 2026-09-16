@@ -145,35 +145,35 @@ contract FrostVerifierTest is FrostFixtures {
         (bytes memory data, bytes memory sig) = _case(0);
         require(!harness.verify(_bytes(".official.publicKey"), data, sig), "different key");
         data[19] = bytes1(uint8(data[19]) ^ 1);
-        require(!token.verifySignature(data, sig), "different recipient");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, sig), "different recipient");
     }
 
     function testFuzzChangedSignatureFails(uint8 index, uint8 bit) public view {
         (bytes memory data, bytes memory sig) = _case(0);
         sig[uint256(index) % sig.length] ^= bytes1(uint8(1 << (uint256(bit) % 8)));
-        require(!token.verifySignature(data, sig), "mutated signature accepted");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, sig), "mutated signature accepted");
     }
 
     function testMalformedSignatureLengthsAndPrefixes() public view {
         (bytes memory data, bytes memory sig) = _case(0);
-        require(!token.verifySignature(data, ""), "empty");
-        require(!token.verifySignature(data, new bytes(64)), "short");
-        require(!token.verifySignature(data, bytes.concat(sig, hex"00")), "long");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, ""), "empty");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, new bytes(64)), "short");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, bytes.concat(sig, hex"00")), "long");
         sig[0] = 0x04;
-        require(!token.verifySignature(data, sig), "uncompressed prefix");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, sig), "uncompressed prefix");
         sig[0] = 0x00;
-        require(!token.verifySignature(data, sig), "infinity encoding");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, sig), "infinity encoding");
     }
 
     function testNonCanonicalAndOffCurveCommitments() public view {
         (bytes memory data,) = _case(0);
-        require(!token.verifySignature(data, abi.encodePacked(hex"02", bytes32(Frost.P), bytes32(uint256(1)))), "x=p");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, abi.encodePacked(hex"02", bytes32(Frost.P), bytes32(uint256(1)))), "x=p");
         require(
-            !token.verifySignature(data, abi.encodePacked(hex"03", bytes32(type(uint256).max), bytes32(uint256(1)))),
+            !harness.verify(_bytes(".cases[0].publicKey"), data, abi.encodePacked(hex"03", bytes32(type(uint256).max), bytes32(uint256(1)))),
             "x>p"
         );
         // x=0 gives rhs=7, a quadratic non-residue modulo secp256k1's field prime.
-        require(!token.verifySignature(data, abi.encodePacked(hex"02", bytes32(0), bytes32(uint256(1)))), "off-curve R");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, abi.encodePacked(hex"02", bytes32(0), bytes32(uint256(1)))), "off-curve R");
     }
 
     function testScalarBoundariesAreNotReduced() public view {
@@ -182,10 +182,10 @@ contract FrostVerifierTest is FrostFixtures {
         for (uint256 i; i < 33; ++i) {
             r[i] = sig[i];
         }
-        require(!token.verifySignature(data, bytes.concat(r, bytes32(Frost.N))), "z=n");
-        require(!token.verifySignature(data, bytes.concat(r, bytes32(type(uint256).max))), "z>n");
-        require(!token.verifySignature(data, bytes.concat(r, bytes32(0))), "wrong zero scalar");
-        require(!token.verifySignature(data, bytes.concat(r, bytes32(Frost.N - 1))), "wrong n-1 scalar");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, bytes.concat(r, bytes32(Frost.N))), "z=n");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, bytes.concat(r, bytes32(type(uint256).max))), "z>n");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, bytes.concat(r, bytes32(0))), "wrong zero scalar");
+        require(!harness.verify(_bytes(".cases[0].publicKey"), data, bytes.concat(r, bytes32(Frost.N - 1))), "wrong n-1 scalar");
     }
 
     function testMalformedKeysRejectedAtDeployment() public {
@@ -206,7 +206,14 @@ contract FrostVerifierTest is FrostFixtures {
     }
 }
 
-contract FrostRewardTokenTest is FrostFixtures {
+abstract contract SnowFixtures is FrostFixtures {
+    function setUp() public virtual override {
+        fixtures = vm.readFile("test/fixtures/sbplus-token.json");
+        token = new FrostRewardToken(_bytes(".cases[0].publicKey"));
+    }
+}
+
+contract FrostRewardTokenTest is SnowFixtures {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event RewardClaimed(bytes32 indexed dataHash, address indexed recipient, uint256 amount);
 
@@ -306,7 +313,7 @@ contract FrostRewardTokenTest is FrostFixtures {
     }
 }
 
-contract FrostGasTest is FrostFixtures {
+contract FrostGasTest is SnowFixtures {
     event log_named_uint(string key, uint256 value);
 
     function testGas20Bytes() public {

@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from scripts.generate_snowblind_vectors import generate, reference_verify
+from scripts.generate_sbplus_token_vectors import fixtures
 from snowblind import curve as ec, protocol as p
 
 
@@ -16,3 +17,8 @@ def test_reproducible_vector_and_independent_verifier():
         assert not p.verify(pk, msg, bytes(altered))
     assert not p.verify(pk, msg, sig[:65]+bytes(32))
     assert not p.verify(pk, msg, sig[:33]+ec.N.to_bytes(32, "big")+sig[65:])
+
+
+def test_solidity_fixtures_are_reproducible():
+    stored = json.loads((Path(__file__).resolve().parents[1]/"test/fixtures/sbplus-token.json").read_text())
+    assert fixtures() == stored

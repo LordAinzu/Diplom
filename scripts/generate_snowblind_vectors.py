@@ -33,16 +33,15 @@ def reference_verify(pk, message, signature):
     return 0 < y < ref.N and z < ref.N and ref.add(r, ref.multiply(c*y % ref.N, ref.decode(bytes.fromhex(pk)))) == ref.add(ref.multiply(z), ref.multiply(y, h))
 
 
-def generate():
+def generate(message=b"SB+ reproducible educational vector", seed=0):
     members = [1, 3]
     pk = p.ph(ec.mul(12345))
     shares = {i: (12345+6789*i) % ec.N for i in members}
     sid = [[1, "11"*32], [3, "33"*32]]
-    message = b"SB+ reproducible educational vector"
-    secrets = {i: dict(a=100+i, b=200+i, y=300+i) for i in members}
+    secrets = {i: dict(a=100+i+seed, b=200+i+seed, y=300+i+seed) for i in members}
     commits = {str(i): dict(A=p.ph(ec.mul(s["a"])), B=p.ph(ec.add(ec.mul(s["b"]), ec.mul(s["y"], ec.H))),
                             cm=p.cm(sid, i, p.sh(s["y"]))) for i, s in secrets.items()}
-    alpha, beta, r = 501, 502, 503
+    alpha, beta, r = 501+seed, 502+seed, 503+seed
     rbar, c = p.blind(pk, message, commits, alpha, beta, r)
     cms = {i: v["cm"] for i, v in commits.items()}
     tr = p.transcript(sid, members, c, cms)

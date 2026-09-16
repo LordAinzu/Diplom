@@ -3,9 +3,11 @@ pragma solidity 0.8.28;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {FrostSecp256k1} from "./crypto/FrostSecp256k1.sol";
+import {SnowblindSecp256k1} from "./crypto/SnowblindSecp256k1.sol";
 
-/// @notice Mints one FRT for each distinct message authorized by the fixed FROST group key.
+/// @notice Mints one FRT for each distinct message authorized by the fixed SB+ group key.
 /// @dev data = 20 raw recipient address bytes || arbitrary payload. No prehash or Ethereum prefix.
+///      Accepts the unblinded 97-byte signature from sbplus-demo-v1, not RFC 9591 FROST.
 contract FrostRewardToken is ERC20 {
     error InvalidPublicKey();
     error InvalidData();
@@ -33,7 +35,7 @@ contract FrostRewardToken is ERC20 {
 
     /// @notice Cryptographic validity only: does not enforce recipient or one-time claim rules.
     function verifySignature(bytes calldata data, bytes calldata signature) public view returns (bool) {
-        return FrostSecp256k1.verify(data, signature, publicKeyX, publicKeyY);
+        return SnowblindSecp256k1.verify(data, signature, publicKeyX, publicKeyY);
     }
 
     /// @notice Anyone can submit a claim, but only the signed recipient receives the tokens.
